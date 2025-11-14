@@ -1,0 +1,38 @@
+services:
+  sdr-hub:
+    image: shajen/sdr-hub:2.1.1
+    env_file: .env
+    restart: on-failure
+    ports:
+      - "8000:80"
+    volumes:
+      - ./data:/app/data
+      - ./log:/var/log/sdr
+    devices:
+      - /dev/bus/usb:/dev/bus/usb
+    networks:
+        - sdr-net
+  transmission-downloader:
+    image: python:3.10-slim
+    env_file: .env
+    depends_on:
+      sdr-hub:
+        condition: service_started
+    volumes:
+      - ./custom/auto-downloader/sources:/app
+    working_dir: /app
+    command: >
+      sh -c "
+        pip install requests beautifulsoup4 &&
+        python run.py
+      "
+    restart: on-failure
+    environment:
+      - BASE_URL=http://sdr-hub:80
+      - USERNAME=${HTTP_USER:-admin}
+      - PASSWORD=${HTTP_PASSWORD:-password}
+    networks:
+      - sdr-net
+networks:
+  sdr-net:
+    driver: bridge
